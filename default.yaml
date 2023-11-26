@@ -15,6 +15,10 @@ models_to_merge: ["jondurbin/airoboros-m-7b-3.1.2", "Intel/neural-chat-7b-v3-1",
 # Merge ratios used for testing each layer's potential for improvement - Huge impact on total running time
 merge_ratios: [0.2, 0.4, 0.6, 0.8]
 
+# If set to true, the lm_head and embed_token tensors (located outside the layers) will also be optimized
+# Models that have a different vocab size will skip this phase as it tends to cause model stability issues
+merge_headers: true
+
 # Strategies:
 # "cumulative" - Default strategy. If there's a chance of reducing the combined probability, accept the merge.
 # "all_phrases" - Only accept the merge if all phrases show an improvement. (Warning: This rarely happens)
