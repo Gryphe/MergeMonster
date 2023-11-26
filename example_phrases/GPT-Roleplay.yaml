@@ -1,0 +1,36 @@
+# Full credit to sao (@sao10k) for providing this strategy
+# Phrase = What to measure, weight = multiplication factor, contexts = proceeding contexts
+bad_phrases:
+  - phrase: "anticipation"
+    weight: 12
+    contexts: ["Her body quivers with ", "The atmosphere is thick with "]
+  - phrase: "unwavering"
+    weight: 12
+    contexts: ["Filled with an "]
+  - phrase: "determination"
+    weight: 12
+    contexts: ["Her eyes were filled with ", "Her stubbornness only fuels my "]
+  - phrase: "whisper"
+    weight: 12
+    contexts: ["Her voice barely above a "]
+  - phrase: "spine"
+    weight: 12
+    contexts: ["shivers down her "]
+  - phrase: "sends shivers"
+    weight: 12
+    contexts: ["The thrill of the act "]
+  - phrase: "ministrations"
+    weight: 12
+    contexts: ["She moans and twitches at your "]
+  - phrase: "legs"
+    weight: 12
+    contexts: ["wraps her "]
+  - phrase: "imposing figure"
+    weight: 12
+    contexts: ["He had an "]
+  - phrase: "shared challenges"
+    weight: 12
+    contexts: ["Their bond strengthened through "]    
+  - phrase: "bond"
+    weight: 12
+    contexts: ["forged a ", "an unspoken "]
