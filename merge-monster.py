@@ -15,7 +15,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from modules.utils import print_ascii_art, format_context, load_config, PrintAndStoreLogger
 from modules.models import load_model, save_model, NoInit
-from modules.probability import calculate_joint_probability, calculate_word_probabilities, print_phrase_probabilities
+from modules.probability import calculate_word_probabilities, print_phrase_probabilities
 from modules.composition import calculate_final_composition, aggregate_composition
 
 def merge_monster(config_path):
@@ -114,8 +114,8 @@ def merge_monster(config_path):
 
         # Pre-populate our layer origins dict at startup
         for i in range(layerCount):
-            layer_origins[i] = [{1.0, model1name}]
-        layer_origins[999] = [{1.0, model1name}]
+            layer_origins[i] = [[1.0, model1name]]
+        layer_origins[999] = [[1.0, model1name]]
 
         # Start of the main monster loop
         for model_path2 in model_paths:
