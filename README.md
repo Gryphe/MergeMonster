@@ -1,4 +1,4 @@
-# Merge Monster
+# MergeMonster
 An unsupervised merging algorithm for Transformers-based language models, using a list of phrases (both good and bad) and a fully automated strategy that strives to decrease (or increase) the probability of these phrases occuring in the final merge.
 
 **Refer to the default.yaml example configuration for an explanation of all potential configuration options.**
@@ -14,6 +14,15 @@ An unsupervised merging algorithm for Transformers-based language models, using 
 5. After all models have been processed, the algorithm saves the final merged model and generates a complete log of the entire process.
 
 At its very core Merge Monster is nothing more but a relentless number chaser - It tries to decrease the probability of unwanted completions. Wanted completions also subtract from that same number (the monster only cares about lowering the total number), which is why the number displayed during processing might go negative.
+
+### Progress bar layout
+```
+[[1.0, 'Mistral-7B-v0.1'], [0.5, 'Nous-Capybara-7B-V1.9'], [0.25, 'SynthIA-7B-v1.3'], [0.1, 'zephyr-7b-beta']]
+09:19:57 - Layer 3/32 - CHANGED - 0.38319 > 0.38261 - 0.2%
+
+[List of merges applied to this layer, with the first being model 1]
+Current time - Layer progress - CHANGED/RETAINED - Old total probability > New total probability - Global change in percentage
+```
 
 ## Merge Strategies
 
