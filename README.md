@@ -23,10 +23,20 @@ At its very core Merge Monster is nothing more but a relentless number chaser - 
 [List of merges applied to this layer, with the first being model 1]
 Current time - Layer progress - CHANGED/RETAINED - Old total probability > New total probability - Global change in percentage
 ```
+### Merge Methods
 
-## Merge Strategies
+The Slerp merge method has been added, which has noticably improved the probabilities of the final merge. Adding other methods might be problematic as they often rely on a base model, which would mean yet another model would have to be loaded in VRAM.
 
-Merge strategies have been added and can be defined in the YAML configuration.
+The following methods are currently available:
+
+- **"slerp"** - Default method. Spherical Linear Interpolation, which better aligns the weights inside the two tensors.
+- **"lerp"** - Linear Interpolation, your basic merging method.
+
+Full credit to [Charles Goddard's mergekit](https://github.com/cg123/mergekit) for the Slerp function.
+
+### Merge Strategies
+
+The following merge strategies are available:
 
 - **"cumulative"** - Default strategy. If there's a chance of reducing the combined probability, accept the merge.
 - **"all_phrases"** - Only accept the merge if all phrases show an improvement. (Warning: This rarely happens)
