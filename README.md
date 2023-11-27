@@ -1,4 +1,4 @@
-# Merge Monster
+# MergeMonster
 An unsupervised merging algorithm for Transformers-based language models, using a list of phrases (both good and bad) and a fully automated strategy that strives to decrease (or increase) the probability of these phrases occuring in the final merge.
 
 **Refer to the default.yaml example configuration for an explanation of all potential configuration options.**
