@@ -5,18 +5,24 @@ device: "cuda"
 random_seed: 42 # Random seed to use
 
 directories:
-  model_path1: "/home/gryphe/merge-monster/models/Mistral-7B-v0.1" # Path to the base model
+  model_path1: "/home/gryphe/merge-monster/models/Mistral-7B-v0.1" # Path to the base model. Must be a local copy.
   model_directory: "/home/gryphe/merge-monster/models/" # Directory of models to scan, IGNORED if models_to_merge has entries in it
   output_directory: "/home/gryphe/merge-monster/mm-output" # Output directory of the merged model
 
-# A list of models to use as merge candidates - HF syntax, so can be either local directories or repo's
+# A list of models to use as merge candidates - HF syntax, so can be either local directories or repos.
+# Overrides model_directory if used
 models_to_merge: ["jondurbin/airoboros-m-7b-3.1.2", "Intel/neural-chat-7b-v3-1", "teknium/OpenHermes-2.5-Mistral-7B"]
 
 # Merge ratios used for testing each layer's potential for improvement - Huge impact on total running time
 merge_ratios: [0.2, 0.4, 0.6, 0.8]
 
+# Choose from the following methods. Defaults to "slerp".
+# "lerp" - Linear interpolation
+# "slerp" - Spherical linear interpolation
+merge_method: "slerp"
+
 # If set to true, the lm_head and embed_token tensors (located outside the layers) will also be optimized
-# Models that have a different vocab size will skip this phase as it tends to cause model stability issues
+# Models that have a different vocab size from model1 will skip this phase automatically as it tends to cause model stability issues
 merge_headers: true
 
 # Strategies:

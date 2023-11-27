@@ -89,7 +89,7 @@ def calculate_word_probabilities(model, tokenizer, bad_phrases, good_phrases, de
             for context in contexts:
                 joint_log_prob = calculate_joint_log_probability(model_copy, tokenizer, context, phrase)
                 joint_prob = math.exp(joint_log_prob)  # Convert log probability to regular probability
-                weighted_prob = joint_prob * weight
+                weighted_prob = joint_prob * weight * sign
                 # Store the phrase and its weighted probability
                 phrase_probs.append((phrase, weighted_prob))
 
