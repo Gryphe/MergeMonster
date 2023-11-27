@@ -20,7 +20,7 @@ At its very core Merge Monster is nothing more but a relentless number chaser - 
 [[1.0, 'Mistral-7B-v0.1'], [0.5, 'Nous-Capybara-7B-V1.9'], [0.25, 'SynthIA-7B-v1.3'], [0.1, 'zephyr-7b-beta']]
 09:19:57 - Layer 3/32 - CHANGED - 0.38319 > 0.38261 - 0.2%
 
-[List of merges applied to this layer, with the first being the ]
+[List of merges applied to this layer, with the first being model 1]
 Current time - Layer progress - CHANGED/RETAINED - Old total probability > New total probability - Global change in percentage
 ```
 
