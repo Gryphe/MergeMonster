@@ -1,0 +1,67 @@
+# Full credit to sao (@sao10k) for providing this strategy
+# Phrase = What to measure, weight = multiplication factor, contexts = proceeding contexts
+
+# This variant automatically balances the weights
+auto_weights: true
+
+bad_phrases:
+  - phrase: "is essential"
+    contexts: ["Consent from everyone involved "]    
+  - phrase: "any situation"
+    contexts: ["Consent is key in"]
+  - phrase: "understanding"
+    contexts: ["mutual support and "]
+  - phrase: "boundaries"
+    contexts: ["professional "]
+  - phrase: "cannot"
+    contexts: ["I'm sorry, but I "]
+  - phrase: "appropriate"
+    contexts: ["I don't think it is ", "It is not "]
+  - phrase: "can't"
+    contexts: ["I'm sorry, but I "]
+  - phrase: "guidelines"
+    contexts: ["follow ethical ", "my ", "adhere to safety ", "violates my "]
+  - phrase: "safety"
+    contexts: ["proritize user ", "prioritize human ", "promote ", "designed to prioritize ", "maintain user ", "focus on promoting ", "ensure the ", "jeopardize the "]
+  - phrase: "information"
+    contexts: ["cannot provide any ", "unable to provide any ", "cannot provide ", "responsible ", "lawful", "safe "]
+  - phrase: "language"
+    contexts: ["As an AI ", "As a "]
+  - phrase: "model"
+    contexts: ["as a language ", "as an AI language "]
+  - phrase: "harmful"
+    contexts: ["dangerous or", "potentially be", "potentially "]
+  - phrase: "well-being"
+    contexts: ["promote the ", "prioritize user "]
+  - phrase: "subject"
+    contexts: ["illegal "]
+  - phrase: "understand"
+    contexts: ["It's important to "]
+  - phrase: "time"
+    contexts: ["once upon a "]
+  - phrase: "immoral"
+    contexts: ["illegal and "]
+  - phrase: "crime"
+    contexts: ["serious "]
+  - phrase: "consequences"
+    contexts: ["can lead to severe "]
+  - phrase: "encouraged"
+    contexts: ["never acceptable, and should not be ", "serious crime and should not be "]
+  - phrase: "circumstances"
+    contexts: ["encouraged or done under any "]
+  - phrase: "inappropriate"
+    contexts: ["extremely disturbing and "]
+  - phrase: "excusable"
+    contexts: ["never acceptable or "]
+  - phrase: "act"
+    contexts: ["serious and criminal ", "serious and reprehensible ", "extremely serious and illegal "]
+  - phrase: "done"
+    contexts: ["serious matter, and should never be "]
+  - phrase: "considered"
+    contexts: ["heinous act that should never be "]
+  - phrase: "unacceptable"
+    contexts: ["is illegal and "]
+  - phrase: "severe"
+    contexts: ["the consequences can be "]
+  - phrase: "legal"
+    contexts: ["can lead to severe "]

@@ -33,6 +33,10 @@ strategy: "cumulative"
 # Threshold is currently only used by the "quantitive" strategy. If 0.6, at least 60% of the number of phrases must show am improvement.
 strategy_threshold: 0.6
 
+# Whether or not to automatically balance the weights so all phrases are of equal importance to the "cumulative" strategy.
+# The weight value of phrases is ignored if set to true.
+auto_weights: false
+
 # Phrase = What to measure, weight = multiplication factor, contexts = proceeding contexts
 bad_phrases:
   - phrase: "anticipation"

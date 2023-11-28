@@ -15,9 +15,9 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from modules.utils import print_ascii_art, format_context, load_config, PrintAndStoreLogger
 from modules.models import load_model, save_model, NoInit
-from modules.probability import calculate_word_probabilities, print_phrase_probabilities
+from modules.probability import calculate_word_probabilities, print_phrase_probabilities, convert_to_new_phrase_format, auto_adjust_weights
 from modules.composition import calculate_final_composition, aggregate_composition
-from modules.merging import merge_tensors
+from modules.merging import merge_tensors, merge_header_tensors
 
 def merge_monster(config_path):
     original_stdout = sys.stdout
@@ -49,7 +49,7 @@ def merge_monster(config_path):
     else: merge_ratios = [0.2, 0.4, 0.6, 0.8]
 
     if 'merge_method' in config: merge_method = config['merge_method']
-    else: merge_method = "slerp"
+    else: merge_method = "lerp"
 
     if merge_method not in ["lerp", "slerp"]:
         sys.exit("ERROR: Please use a valid merging method! (lerp/slerp)")
@@ -59,6 +59,9 @@ def merge_monster(config_path):
 
     if 'random_seed' in config: random_seed = config['random_seed']
     else: random_seed = 512
+
+    if 'auto_weights' in config: auto_weights = config['auto_weights']
+    else: auto_weights = False
 
     if 'strategy' in config: strategy = config['strategy']
     else: strategy = "cumulative"
@@ -79,6 +82,7 @@ def merge_monster(config_path):
     
     print(f"Output directory : {output_directory}")
     print(f"Phrases loaded   : {len(bad_phrases)+len(good_phrases)}")
+    print(f"Auto weights     : {auto_weights}")
     print(f"Merge ratios     : {merge_ratios}")
     print(f"Merge method     : {merge_method}")
     print(f"Merge headers    : {merge_headers}")
@@ -104,6 +108,13 @@ def merge_monster(config_path):
         header_chosen = [1.0, model1name]
         
         tokenizer = AutoTokenizer.from_pretrained(model_path1)
+
+        # Convert to new phrase format
+        bad_phrases = convert_to_new_phrase_format(bad_phrases)
+        good_phrases = convert_to_new_phrase_format(good_phrases)
+
+        if auto_weights == True:
+            bad_phrases, good_phrases = auto_adjust_weights(model1, tokenizer, bad_phrases, good_phrases, device)
 
         # Let's get our starting probabilities
         print_phrase_probabilities(model1, tokenizer, bad_phrases, good_phrases, device)
@@ -135,144 +146,56 @@ def merge_monster(config_path):
     
             model2 = load_model(model_path2, device)
 
+            model2.config.eos_token_id = model1.config.eos_token_id
+
+            # Debugging purposes
+            skip_layers = False
+            
             # Start of layer processing loop
             for i in range(layerCount):
-                # Save a copy of the unchanged dict at start, otherwise probabilities get messed up
-                model1dict = copy.deepcopy(model1.model.state_dict())
-                
-                orig_probs = calculate_word_probabilities(model1, tokenizer, bad_phrases, good_phrases, device)
-                best_probs = orig_probs
-                best_layer = model1.model.layers[i].state_dict()
-                best_ratio = 1.0
-                layer_changed = False
-
-                # We go along the scale of ratios and test each possibility
-                for ratio in tqdm(merge_ratios, desc="Testing Merge Ratios"):
-                    layer1 = model1.model.layers[i].state_dict()
-                    layer2 = model2.model.layers[i].state_dict()
-                    merged_layer = layer1
-                    
-                    for key in merged_layer.keys():
-                        merged_layer[key] = merge_tensors(merge_method, layer1[key], layer2[key], ratio)
-
-                    # Restore our original dict copy, otherwise probabilities get messed up - Very expensive in terms of efficiency, but necessary
-                    model1.model.load_state_dict(model1dict)
-                    model1.model.layers[i].load_state_dict(merged_layer)
-
-                    new_probs = calculate_word_probabilities(model1, tokenizer, bad_phrases, good_phrases, device)
-            
-                    if strategy == "cumulative":
-                        if sum(p for _, p in new_probs) < sum(p for _, p in best_probs):
-                            best_probs = new_probs
-                            best_layer = merged_layer
-                            best_ratio = ratio
-                            layer_changed = True
-                    elif strategy == "all_phrases":
-                        if all(new_p <= orig_p for (_, new_p), (_, orig_p) in zip(new_probs, orig_probs)):
-                            best_probs = new_probs
-                            best_layer = merged_layer
-                            best_ratio = ratio
-                            layer_changed = True
-                    elif strategy == "quantitive":
-                        improved_phrases = 0
-                        regressed_phrases = 0
-                    
-                        total_phrases = len(new_probs)  # Total number of phrases
-                    
-                        for (_, new_prob), (_, orig_prob) in zip(new_probs, orig_probs):
-                            if new_prob < orig_prob:
-                                improved_phrases += 1
-                            elif new_prob > orig_prob:
-                                regressed_phrases += 1
-                    
-                        # Decision Criteria
-                        improvement_ratio = improved_phrases / total_phrases
-                        if improvement_ratio >= strategy_threshold:
-                            # Accept the merge
-                            best_probs = new_probs
-                            best_layer = merged_layer
-                            best_ratio = ratio
-                            layer_changed = True
-                    
-                # Update/retain the model state dictionary with the best performing layer, using our clean dict
-                model1.model.load_state_dict(model1dict)
-                model1.model.layers[i].load_state_dict(best_layer)
-
-                #print(torch.cuda.memory_summary())
-
-                if layer_changed == True:
-                    layer_origins[i].append([best_ratio, model2name])
-                    layer_changed_label = 'CHANGED'
-                else:
-                    layer_changed_label = 'RETAINED'
-
-                del model1dict
-                del best_layer
-                torch.cuda.empty_cache()
-                gc.collect()
-
-                best_prob = sum(prob for _, prob in best_probs)
-                orig_prob = sum(prob for _, prob in orig_probs)
-
-                print(layer_origins[i])
-
-                if layer_changed_label == 'CHANGED':
-                    print(f"{datetime.now().strftime('%H:%M:%S')} - Layer {i+1}/{layerCount} - {layer_changed_label} - {(orig_prob):.5f} > {(best_prob):.5f} - {abs(((best_prob - orig_prob) / orig_prob * 100)):.1f}%")
-                else:
-                    print(f"{datetime.now().strftime('%H:%M:%S')} - Layer {i+1}/{layerCount} - {layer_changed_label} - {(best_prob):.5f}")
-
-            # -------------------------------------------------------------------------------------------------------
-            # START OF HEADER OPTIMIZATION LOOP
-            # -------------------------------------------------------------------------------------------------------
-
-            if merge_headers == True:
-                # Only try to optimize the header if vocab sizes are the same
-                if model1.state_dict()['lm_head.weight'].shape[0] == model2.state_dict()['lm_head.weight'].shape[0]:
-                    # As befores, save a copy of the unchanged dict at start, otherwise probabilities get messed up
+                if skip_layers == False:
+                    # Save a copy of the unchanged dict at start, otherwise probabilities get messed up
                     model1dict = copy.deepcopy(model1.model.state_dict())
-
+                    
                     orig_probs = calculate_word_probabilities(model1, tokenizer, bad_phrases, good_phrases, device)
                     best_probs = orig_probs
-                    best_header = model1.state_dict()['lm_head.weight']
-                    best_vocab = model1.state_dict()['model.embed_tokens.weight']
+                    best_layer = model1.model.layers[i].state_dict()
                     best_ratio = 1.0
-                    header_changed = False
-        
+                    layer_changed = False
+    
                     # We go along the scale of ratios and test each possibility
-                    for ratio in tqdm(merge_ratios, desc="Optimizing Header"):
+                    for ratio in tqdm(merge_ratios, desc="Testing Merge Ratios"):
+                        layer1 = model1.model.layers[i].state_dict()
+                        layer2 = model2.model.layers[i].state_dict()
+                        merged_layer = layer1
+                        
+                        for key in merged_layer.keys():
+                            merged_layer[key] = merge_tensors(merge_method, layer1[key], layer2[key], ratio)
+    
                         # Restore our original dict copy, otherwise probabilities get messed up - Very expensive in terms of efficiency, but necessary
                         model1.model.load_state_dict(model1dict)
-                        
-                        current_header = merge_tensors(merge_method, model1.state_dict()['lm_head.weight'], model2.state_dict()['lm_head.weight'], ratio)
-                        current_vocab = merge_tensors(merge_method, model1.state_dict()['model.embed_tokens.weight'], model2.state_dict()['model.embed_tokens.weight'], ratio)
-        
-                        # Directly modify the weights of the model
-                        model1.lm_head.weight.data = current_header
-                        model1.model.embed_tokens.weight.data = current_vocab
-        
+                        model1.model.layers[i].load_state_dict(merged_layer)
+    
                         new_probs = calculate_word_probabilities(model1, tokenizer, bad_phrases, good_phrases, device)
                 
                         if strategy == "cumulative":
-                            if sum(p for _, p in new_probs) < sum(p for _, p in best_probs):
+                            if sum(p for _, _, p in new_probs) < sum(p for _, _, p in best_probs):
                                 best_probs = new_probs
-                                best_header = current_header
-                                best_vocab = current_vocab
+                                best_layer = merged_layer
                                 best_ratio = ratio
-                                header_changed = True
+                                layer_changed = True
                         elif strategy == "all_phrases":
-                            if all(new_p <= orig_p for (_, new_p), (_, orig_p) in zip(new_probs, orig_probs)):
+                            if all(new_p <= orig_p for (_, _, new_p), (_, _, orig_p) in zip(new_probs, orig_probs)):
                                 best_probs = new_probs
-                                best_header = current_header
-                                best_vocab = current_vocab
+                                best_layer = merged_layer
                                 best_ratio = ratio
-                                header_changed = True
+                                layer_changed = True
                         elif strategy == "quantitive":
                             improved_phrases = 0
                             regressed_phrases = 0
-                        
                             total_phrases = len(new_probs)  # Total number of phrases
                         
-                            for (_, new_prob), (_, orig_prob) in zip(new_probs, orig_probs):
+                            for (_, _, new_prob), (_, _, orig_prob) in zip(new_probs, orig_probs):
                                 if new_prob < orig_prob:
                                     improved_phrases += 1
                                 elif new_prob > orig_prob:
@@ -283,37 +206,127 @@ def merge_monster(config_path):
                             if improvement_ratio >= strategy_threshold:
                                 # Accept the merge
                                 best_probs = new_probs
-                                best_header = current_header
-                                best_vocab = current_vocab
+                                best_layer = merged_layer
                                 best_ratio = ratio
-                                header_changed = True
-    
-                    if header_changed == True:
-                        layer_origins[999].append([best_ratio, model2name])
-                        header_changed_label = 'CHANGED'
-                    else:
-                        header_changed_label = 'RETAINED'
-    
-                    best_prob = sum(prob for _, prob in best_probs)
-                    orig_prob = sum(prob for _, prob in orig_probs)
-    
-                    print(layer_origins[999])
-    
-                    if header_changed_label == 'CHANGED':
-                        print(f"{datetime.now().strftime('%H:%M:%S')} - Header - {header_changed_label} - {(orig_prob):.5f} > {(best_prob):.5f} - {(abs((best_prob - orig_prob) / orig_prob * 100)):.1f}%") 
-                    else:
-                        print(f"{datetime.now().strftime('%H:%M:%S')} - Header - {header_changed_label} - {(best_prob):.5f}") 
+                                layer_changed = True
                         
-                    # Update/retain the model state dictionary with the best performing headers, using our clean dict
+                    # Update/retain the model state dictionary with the best performing layer, using our clean dict
                     model1.model.load_state_dict(model1dict)
-                    model1.lm_head.weight.data = best_header
-                    model1.model.embed_tokens.weight.data = best_vocab
-        
-                    del best_header
-                    del best_vocab
+                    model1.model.layers[i].load_state_dict(best_layer)
+    
+                    #print(torch.cuda.memory_summary())
+    
+                    if layer_changed == True:
+                        layer_origins[i].append([best_ratio, model2name])
+                        layer_changed_label = 'CHANGED'
+                    else:
+                        layer_changed_label = 'RETAINED'
+    
                     del model1dict
+                    del best_layer
                     torch.cuda.empty_cache()
                     gc.collect()
+    
+                    best_prob = sum(prob for _, _, prob in best_probs)
+                    orig_prob = sum(prob for _, _, prob in orig_probs)
+    
+                    print(layer_origins[i])
+    
+                    if layer_changed_label == 'CHANGED':
+                        print(f"{datetime.now().strftime('%H:%M:%S')} - Layer {i+1}/{layerCount} - {layer_changed_label} - {(orig_prob):.5f} > {(best_prob):.5f} - {abs(((best_prob - orig_prob) / orig_prob * 100)):.1f}%")
+                    else:
+                        print(f"{datetime.now().strftime('%H:%M:%S')} - Layer {i+1}/{layerCount} - {layer_changed_label} - {(best_prob):.5f}")
+
+            # -------------------------------------------------------------------------------------------------------
+            # START OF HEADER OPTIMIZATION LOOP
+            # -------------------------------------------------------------------------------------------------------
+
+            if merge_headers == True:
+                # As befores, save a copy of the unchanged dict at start, otherwise probabilities get messed up
+                model1dict = copy.deepcopy(model1.model.state_dict())
+
+                orig_probs = calculate_word_probabilities(model1, tokenizer, bad_phrases, good_phrases, device)
+                best_probs = orig_probs
+                best_header = model1.state_dict()['lm_head.weight']
+                best_vocab = model1.state_dict()['model.embed_tokens.weight']
+                best_ratio = 1.0
+                header_changed = False
+    
+                # We go along the scale of ratios and test each possibility
+                for ratio in tqdm(merge_ratios, desc="Optimizing Header"):
+                    # Restore our original dict copy, otherwise probabilities get messed up - Very expensive in terms of efficiency, but necessary
+                    model1.model.load_state_dict(model1dict)
+                    
+                    current_header = merge_header_tensors(model1, model2, merge_method, model1.state_dict()['lm_head.weight'], model2.state_dict()['lm_head.weight'], ratio)
+                    current_vocab = merge_header_tensors(model1, model2, merge_method, model1.state_dict()['model.embed_tokens.weight'], model2.state_dict()['model.embed_tokens.weight'], ratio)
+    
+                    # Directly modify the weights of the model
+                    model1.lm_head.weight.data = current_header
+                    model1.model.embed_tokens.weight.data = current_vocab
+    
+                    new_probs = calculate_word_probabilities(model1, tokenizer, bad_phrases, good_phrases, device)
+
+                    if strategy == "cumulative":
+                        if sum(p for _, _, p in new_probs) < sum(p for _, _, p in best_probs):
+                            best_probs = new_probs
+                            best_header = current_header
+                            best_vocab = current_vocab
+                            best_ratio = ratio
+                            header_changed = True
+                    elif strategy == "all_phrases":
+                        if all(new_p <= orig_p for (_, _, new_p), (_, _, orig_p) in zip(new_probs, orig_probs)):
+                            best_probs = new_probs
+                            best_header = current_header
+                            best_vocab = current_vocab
+                            best_ratio = ratio
+                            header_changed = True
+                    elif strategy == "quantitive":
+                        improved_phrases = 0
+                        regressed_phrases = 0
+                        total_phrases = len(new_probs)  # Total number of phrases
+                    
+                        for (_, _, new_prob), (_, _, orig_prob) in zip(new_probs, orig_probs):
+                            if new_prob < orig_prob:
+                                improved_phrases += 1
+                            elif new_prob > orig_prob:
+                                regressed_phrases += 1
+                    
+                        # Decision Criteria
+                        improvement_ratio = improved_phrases / total_phrases
+                        if improvement_ratio >= strategy_threshold:
+                            # Accept the merge
+                            best_probs = new_probs
+                            best_header = current_header
+                            best_vocab = current_vocab
+                            best_ratio = ratio
+                            header_changed = True
+
+                if header_changed == True:
+                    layer_origins[999].append([best_ratio, model2name])
+                    header_changed_label = 'CHANGED'
+                else:
+                    header_changed_label = 'RETAINED'
+
+                best_prob = sum(prob for _, _, prob in best_probs)
+                orig_prob = sum(prob for _, _, prob in orig_probs)
+
+                print(layer_origins[999])
+
+                if header_changed_label == 'CHANGED':
+                    print(f"{datetime.now().strftime('%H:%M:%S')} - Header - {header_changed_label} - {(orig_prob):.5f} > {(best_prob):.5f} - {(abs((best_prob - orig_prob) / orig_prob * 100)):.1f}%") 
+                else:
+                    print(f"{datetime.now().strftime('%H:%M:%S')} - Header - {header_changed_label} - {(best_prob):.5f}") 
+                    
+                # Update/retain the model state dictionary with the best performing headers, using our clean dict
+                model1.model.load_state_dict(model1dict)
+                model1.lm_head.weight.data = best_header
+                model1.model.embed_tokens.weight.data = best_vocab
+    
+                del best_header
+                del best_vocab
+                del model1dict
+                torch.cuda.empty_cache()
+                gc.collect()
         
             # -------------------------------------------------------------------------------------------------------
             # END OF HEADER OPTIMIZATION LOOP

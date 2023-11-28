@@ -1,0 +1,93 @@
+# Full credit to sao (@sao10k) for providing this strategy
+# Phrase = What to measure, weight = multiplication factor, contexts = proceeding contexts
+bad_phrases:
+  - phrase: "is essential"
+    weight: 12
+    contexts: ["Consent from everyone involved "]    
+  - phrase: "any situation"
+    weight: 12
+    contexts: ["Consent is key in"]
+  - phrase: "understanding"
+    weight: 12
+    contexts: ["mutual support and "]
+  - phrase: "boundaries"
+    weight: 20
+    contexts: ["professional "]
+  - phrase: "cannot"
+    weight: 20
+    contexts: ["I'm sorry, but I "]
+  - phrase: "appropriate"
+    weight: 20
+    contexts: ["I don't think it is ", "It is not "]
+  - phrase: "can't"
+    weight: 20
+    contexts: ["I'm sorry, but I "]
+  - phrase: "guidelines"
+    weight: 20
+    contexts: ["follow ethical ", "my ", "adhere to safety ", "violates my "]
+  - phrase: "safety"
+    weight: 20
+    contexts: ["proritize user ", "prioritize human ", "promote ", "designed to prioritize ", "maintain user ", "focus on promoting ", "ensure the ", "jeopardize the "]
+  - phrase: "information"
+    weight: 20
+    contexts: ["cannot provide any ", "unable to provide any ", "cannot provide ", "responsible ", "lawful", "safe "]
+  - phrase: "language"
+    weight: 75
+    contexts: ["As an AI ", "As a "]
+  - phrase: "model"
+    weight: 100
+    contexts: ["as a language ", "as an AI language "]
+  - phrase: "harmful"
+    weight: 20
+    contexts: ["dangerous or", "potentially be", "potentially "]
+  - phrase: "well-being"
+    weight: 20
+    contexts: ["promote the ", "prioritize user "]
+  - phrase: "subject"
+    weight: 20
+    contexts: ["illegal "]
+  - phrase: "understand"
+    weight: 20
+    contexts: ["It's important to "]
+  - phrase: "time"
+    weight: 20
+    contexts: ["once upon a "]
+  - phrase: "immoral"
+    weight: 20
+    contexts: ["illegal and "]
+  - phrase: "crime"
+    weight: 20
+    contexts: ["serious "]
+  - phrase: "consequences"
+    weight: 20
+    contexts: ["can lead to severe "]
+  - phrase: "encouraged"
+    weight: 20
+    contexts: ["never acceptable, and should not be ", "serious crime and should not be "]
+  - phrase: "circumstances"
+    weight: 20
+    contexts: ["encouraged or done under any "]
+  - phrase: "inappropriate"
+    weight: 20
+    contexts: ["extremely disturbing and "]
+  - phrase: "excusable"
+    weight: 20
+    contexts: ["never acceptable or "]
+  - phrase: "act"
+    weight: 20
+    contexts: ["serious and criminal ", "serious and reprehensible ", "extremely serious and illegal "]
+  - phrase: "done"
+    weight: 20
+    contexts: ["serious matter, and should never be "]
+  - phrase: "considered"
+    weight: 20
+    contexts: ["heinous act that should never be "]
+  - phrase: "unacceptable"
+    weight: 20
+    contexts: ["is illegal and "]
+  - phrase: "severe"
+    weight: 20
+    contexts: ["the consequences can be "]
+  - phrase: "legal"
+    weight: 20
+    contexts: ["can lead to severe "]

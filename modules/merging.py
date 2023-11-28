@@ -58,3 +58,35 @@ def safe_normalize(tensor: torch.Tensor, eps: float):
     if norm > eps:
         return tensor / norm
     return tensor
+
+def merge_header_tensors(model1, model2, method, v0, v1, t) -> torch.Tensor:
+    # TLDR - We reshape model 2's tensors to match model 1's
+    model1bos  = model1.config.bos_token_id
+    model1eos  = model1.config.eos_token_id
+    model1size = v0.shape[0]
+
+    model2bos  = model2.config.bos_token_id
+    model2eos  = model2.config.eos_token_id
+    model2size = v1.shape[0]
+
+    # If model 2 has a smaller vocab, expand it
+    if model1size > model2size:
+        # Calculate the difference in size
+        size_diff = model1size - model2size
+        # Copy the additional entries from v0 to v1
+        v1 = torch.cat([v1, v0[-size_diff:]], dim=0)
+
+    # Swap special tokens if needed
+    if model1bos != model2bos: 
+        v1[model1bos] = v1[model2bos]
+        v1[model2bos] = v0[model1bos]
+    if model1eos != model2eos: 
+        v1[model1eos] = v1[model2eos]
+        v1[model2eos] = v0[model1eos]
+
+    # If model 1 is smaller then 2, truncate
+    # We do this after swapping tokens around
+    if model1size < model2size:
+        v1 = v1[:model1size]
+
+    return merge_tensors_lerp(v0, v1, t)
