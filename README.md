@@ -15,7 +15,7 @@ An unsupervised merging algorithm for Transformers-based language models, using 
 
 At its very core Merge Monster is nothing more but a relentless number chaser - It tries to decrease the probability of unwanted completions. Wanted completions also subtract from that same number (the monster only cares about lowering the total number), which is why the number displayed during processing might go negative.
 
-### Progress bar layout
+## Progress bar layout
 ```
 [[1.0, 'Mistral-7B-v0.1'], [0.5, 'Nous-Capybara-7B-V1.9'], [0.25, 'SynthIA-7B-v1.3'], [0.1, 'zephyr-7b-beta']]
 09:19:57 - Layer 3/32 - CHANGED - 0.38319 > 0.38261 - 0.2%
@@ -23,18 +23,37 @@ At its very core Merge Monster is nothing more but a relentless number chaser - 
 [List of merges applied to this layer, with the first being model 1]
 Current time - Layer progress - CHANGED/RETAINED - Old total probability > New total probability - Global change in percentage
 ```
-### Merge Methods
+## Merge Methods
 
-The Slerp merge method has been added, which has noticably improved the probabilities of the final merge. Adding other methods might be problematic as they often rely on a base model, which would mean yet another model would have to be loaded in VRAM.
+New merging methods have been added (slice/cyclic) to help target specific parts of tensors. These are highly experimental but verified to be fully functional.
 
-The following methods are currently available:
+**The following methods are currently available:**
 
-- **"slerp"** - Default method. Spherical Linear Interpolation, which better aligns the weights inside the two tensors.
-- **"lerp"** - Linear Interpolation, your basic merging method.
+### "lerp"
 
-Full credit to [Charles Goddard's mergekit](https://github.com/cg123/mergekit) for the Slerp function.
+Default method. Linear Interpolation, your basic merging method.
 
-### Merge Strategies
+### "slerp"
+
+- Spherical Linear Interpolation, which better aligns the weights inside the two tensors.
+- Full credit to [Charles Goddard's mergekit](https://github.com/cg123/mergekit) for the Slerp function.
+
+### "slice"
+
+- Highly experimental. A shift from one model to another, with a smooth 10% transition in-between.
+- Ratio defines the starting point of the transition.
+
+![Slice](images/slice.png?raw=true "Slice")
+
+### "cyclic"
+
+- Highly experimental. A shift from one model to the other, then back to the original model.
+- Especially useful for when you wish to target specific parts of model 1's tensors as model 2 only has a 15% contribution in the resulting output tensor.
+- Merge ratios are ignored and a predefined scale is used that covers the entire spectrum during the optimization process.
+
+![Cyclic](images/cyclic.png?raw=true "Cyclic")
+
+## Merge Strategies
 
 The following merge strategies are available:
 
