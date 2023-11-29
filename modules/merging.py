@@ -5,6 +5,10 @@ def merge_tensors(method: str, v0: torch.Tensor, v1: torch.Tensor, t: float) -> 
         return merge_tensors_lerp(v0, v1, t)
     elif method == "slerp":
         return merge_tensors_slerp(v0, v1, t)
+    elif method == "slice":
+        return merge_tensors_slice(v0, v1, t)
+    elif method == "cyclic":
+        return merge_tensors_cyclic(v0, v1, t)
 
 def merge_tensors_lerp(v0: torch.Tensor, v1: torch.Tensor, t: float) -> torch.Tensor:
     """Linear interpolation between two tensors."""
@@ -52,6 +56,88 @@ def merge_tensors_slerp(v0: torch.Tensor, v1: torch.Tensor, t: float, dot_thresh
     result = s0 * v0_copy + s1 * v1_copy
 
     return result
+
+# MODEL 1 > 10% blend > MODEL 2
+def merge_tensors_slice(v0: torch.Tensor, v1: torch.Tensor, t: float) -> torch.Tensor:
+    # We're only working on the second dimension here
+    if v0.dim() == 2:
+        # Calculate the slice indices for each tensor
+        slice_index_0 = int(v0.shape[1] * (1 - t))
+        slice_index_1 = v1.shape[1] - slice_index_0
+    
+        blend_slice_size = int(v0.shape[1] * 0.05)
+        blend_slice_0 = v0.narrow(1, slice_index_0 - blend_slice_size, blend_slice_size * 2)
+        blend_slice_1 = v1.narrow(1, slice_index_0 - blend_slice_size, blend_slice_size * 2)
+        blended_slice = blend_slice_0
+
+        # Apply gradient blending
+        for i in range(blend_slice_size * 2):
+            blend_ratio = i / (blend_slice_size * 2)
+            blended_slice[:, i] = (blend_slice_1[:, i] * blend_ratio) + (blend_slice_0[:, i] * (1 - blend_ratio))
+    
+        slice_index_0 = slice_index_0 - blend_slice_size
+        slice_index_1 = slice_index_0 + blend_slice_size + blend_slice_size
+    
+        # Perform slicing
+        slice_0 = v0.narrow(1, 0, slice_index_0)
+        slice_1 = v1.narrow(1, slice_index_1, v1.shape[1] - slice_index_1)
+    
+        # Concatenate the slices
+        result = torch.cat([slice_0, blended_slice, slice_1], dim=1)
+    
+        return result
+    else:
+        return v0
+
+# MODEL 1 > 10% blend > 10% of MODEL 2 > 10% blend > MODEL 1, with varying starting positions as defined by t
+def merge_tensors_cyclic(v0: torch.Tensor, v1: torch.Tensor, t: float) -> torch.Tensor:
+    # We're only working on the second dimension here
+    if v0.dim() == 2:
+        blend_slice_size = int(v0.shape[1] * 0.05) # Blending zone is eventually multiplied by two due to overlap
+        v1_slice_size = int(v0.shape[1] * 0.10) # 10% of Model 2, accounting for the 5% blend zone on both sides. So kinda 15%.
+
+        slice_index_0 = int(v0.shape[1] * (1 - t)) - blend_slice_size # Model 1, first slice length
+
+        # First MODEL 1 > MODEL 2 blend
+        # -----------------------
+        blend_slice_0_0 = v0.narrow(1, slice_index_0, blend_slice_size * 2)
+        blend_slice_0_1 = v1.narrow(1, slice_index_0, blend_slice_size * 2)
+        blended_slice_0 = blend_slice_0_0
+
+        # Apply gradient blending
+        for i in range(blend_slice_size * 2):
+            blend_ratio = i / (blend_slice_size * 2)
+            blended_slice_0[:, i] = (blend_slice_0_0[:, i] * (1 - blend_ratio)) + (blend_slice_0_1[:, i] * blend_ratio)
+
+        # Second MODEL 2 > MODEL 1 blend
+        # -----------------------
+        blend_slice_1_0 = v0.narrow(1, slice_index_0 + (blend_slice_size * 2) + v1_slice_size, blend_slice_size * 2)
+        blend_slice_1_1 = v1.narrow(1, slice_index_0 + (blend_slice_size * 2) + v1_slice_size, blend_slice_size * 2)
+        blended_slice_1 = blend_slice_1_0
+
+        # Apply gradient blending
+        for i in range(blend_slice_size * 2):
+            blend_ratio = i / (blend_slice_size * 2)
+            blended_slice_1[:, i] = (blend_slice_1_1[:, i] * (1 - blend_ratio)) + (blend_slice_1_0[:, i] * blend_ratio)
+
+        # Time to out main candidates into various pieces
+        m1len_0   = slice_index_0
+        m2start   = slice_index_0 + (blend_slice_size * 2)
+        m1start_1 = m2start + v1_slice_size + (blend_slice_size * 2)
+        m2end_1   = v1.shape[1] - m1start_1
+
+        # print(f"M1 0-{m1len_0} > B1 {m1len_0}-{m1len_0+(blend_slice_size * 2)} > M2 {m2start}-{m2start+v1_slice_size} > B2 {m2start+v1_slice_size}-{m1start_1} > M1 {m1start_1}-{v1.shape[1]}")
+        
+        slice_0_0 = v0.narrow(1, 0, m1len_0) # Model 1, first piece
+        slice_1_0 = v1.narrow(1, m2start, v1_slice_size) # Model 2 slice
+        slice_0_1 = v0.narrow(1, m1start_1, m2end_1) # Model 1, second piece
+    
+        # Concatenate the slices
+        result = torch.cat([slice_0_0, blended_slice_0, slice_1_0, blended_slice_1, slice_0_1], dim=1)
+    
+        return result
+    else:
+        return v0
 
 def safe_normalize(tensor: torch.Tensor, eps: float):
     norm = tensor.norm()

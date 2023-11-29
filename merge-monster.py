@@ -51,8 +51,11 @@ def merge_monster(config_path):
     if 'merge_method' in config: merge_method = config['merge_method']
     else: merge_method = "lerp"
 
-    if merge_method not in ["lerp", "slerp"]:
-        sys.exit("ERROR: Please use a valid merging method! (lerp/slerp)")
+    if merge_method == "cyclic":
+        merge_ratios = [0.25, 0.45, 0.65, 0.85]
+
+    if merge_method not in ["lerp", "slerp", "slice", "cyclic"]:
+        sys.exit("ERROR: Please use a valid merging method! (lerp/slerp/slice/cyclic)")
 
     if 'merge_headers' in config: merge_headers = config['merge_headers']
     else: merge_headers = True
@@ -164,7 +167,7 @@ def merge_monster(config_path):
                     layer_changed = False
     
                     # We go along the scale of ratios and test each possibility
-                    for ratio in tqdm(merge_ratios, desc="Testing Merge Ratios"):
+                    for ratio in tqdm(merge_ratios, desc=f"Optimizing Layer {i+1}/{layerCount}"):
                         layer1 = model1.model.layers[i].state_dict()
                         layer2 = model2.model.layers[i].state_dict()
                         merged_layer = layer1
@@ -177,6 +180,10 @@ def merge_monster(config_path):
                         model1.model.layers[i].load_state_dict(merged_layer)
     
                         new_probs = calculate_word_probabilities(model1, tokenizer, bad_phrases, good_phrases, device)
+
+                        
+                        if merge_method == "cyclic": # Dirty hack but cyclic merging only merges 15% of model 2's weight
+                            ratio = 0.15
                 
                         if strategy == "cumulative":
                             if sum(p for _, _, p in new_probs) < sum(p for _, _, p in best_probs):
@@ -236,6 +243,7 @@ def merge_monster(config_path):
                         print(f"{datetime.now().strftime('%H:%M:%S')} - Layer {i+1}/{layerCount} - {layer_changed_label} - {(orig_prob):.5f} > {(best_prob):.5f} - {abs(((best_prob - orig_prob) / orig_prob * 100)):.1f}%")
                     else:
                         print(f"{datetime.now().strftime('%H:%M:%S')} - Layer {i+1}/{layerCount} - {layer_changed_label} - {(best_prob):.5f}")
+                    print("----")
 
             # -------------------------------------------------------------------------------------------------------
             # START OF HEADER OPTIMIZATION LOOP
