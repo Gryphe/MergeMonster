@@ -9,6 +9,8 @@ def merge_tensors(method: str, v0: torch.Tensor, v1: torch.Tensor, t: float) -> 
         return merge_tensors_slice(v0, v1, t)
     elif method == "cyclic":
         return merge_tensors_cyclic(v0, v1, t)
+    elif method == "gradient":
+        return merge_tensors_gradient(v0, v1, t)
 
 def merge_tensors_lerp(v0: torch.Tensor, v1: torch.Tensor, t: float) -> torch.Tensor:
     """Linear interpolation between two tensors."""
@@ -135,6 +137,30 @@ def merge_tensors_cyclic(v0: torch.Tensor, v1: torch.Tensor, t: float) -> torch.
         # Concatenate the slices
         result = torch.cat([slice_0_0, blended_slice_0, slice_1_0, blended_slice_1, slice_0_1], dim=1)
     
+        return result
+    else:
+        return v0
+
+# Model 1 > Model 2 > Model 1, with t defining the peak of the gradient along the tensor's width
+def merge_tensors_gradient(v0: torch.Tensor, v1: torch.Tensor, t: float) -> torch.Tensor:
+    if v0.dim() == 2:
+        total_length = v0.shape[1]
+        peak = int(total_length * (1 - t))
+
+        # Create an index array
+        indices = torch.arange(total_length).float()
+
+        # Vectorized computation of blend ratios
+        blend_ratios = torch.zeros_like(indices)
+        blend_ratios[:peak] = (indices[:peak] / peak) * 0.9  # Scale to max 0.9 for v1
+        blend_ratios[peak:] = torch.flip(indices[:total_length - peak], dims=[0]) / (total_length - peak) * 0.9  # Scale to max 0.9 for v1
+
+        # Ensure that v0 still has influence
+        v0_ratios = 1 - blend_ratios
+
+        # Vectorized blending of the tensors
+        result = (v1 * blend_ratios.unsqueeze(0)) + (v0 * v0_ratios.unsqueeze(0))
+
         return result
     else:
         return v0

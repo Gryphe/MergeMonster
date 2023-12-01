@@ -20,16 +20,20 @@ from modules.composition import calculate_final_composition, aggregate_compositi
 from modules.merging import merge_tensors, merge_header_tensors
 
 def merge_monster(config_path):
+    # We save everything that gets printed to the screen
     original_stdout = sys.stdout
     logger = PrintAndStoreLogger(original_stdout)
     sys.stdout = logger  # Redirect stdout to the logger instance
     
     config = load_config(config_path)
 
-    device = config['device']
+    if 'device' in config: device = config['device']
+    else: device = ['cpu']
+
     model_path1 = config['directories']['model_path1']
     output_directory = config['directories']['output_directory']
 
+    # Source model config
     if 'models_to_merge' in config: models_to_merge = config['models_to_merge']
     else: models_to_merge = []
 
@@ -39,38 +43,45 @@ def merge_monster(config_path):
     if len(models_to_merge) == 0 and len(model_directory) == 0:
         sys.exit("ERROR: No model directory or models to merge variable has been found in the YAML config.")
 
+    # Phrase config
     if 'bad_phrases' in config: bad_phrases = config['bad_phrases']
     else: bad_phrases = []
 
     if 'good_phrases' in config: good_phrases = config['good_phrases']
     else: good_phrases = []
 
+    if 'auto_weights' in config: auto_weights = config['auto_weights']
+    else: auto_weights = False
+
+    # Merging ratios + methods config
     if 'merge_ratios' in config: merge_ratios = config['merge_ratios']
     else: merge_ratios = [0.2, 0.4, 0.6, 0.8]
 
-    if 'merge_method' in config: merge_method = config['merge_method']
-    else: merge_method = "lerp"
+    if 'merge_method' in config: 
+        if isinstance(config['merge_method'], list):
+            merge_methods = config['merge_method']
+        else:
+            merge_methods = [config['merge_method']]
+    else: merge_methods = ["lerp"]
 
-    if merge_method == "cyclic":
-        merge_ratios = [0.25, 0.45, 0.65, 0.85]
-
-    if merge_method not in ["lerp", "slerp", "slice", "cyclic"]:
-        sys.exit("ERROR: Please use a valid merging method! (lerp/slerp/slice/cyclic)")
+    for merge_method in merge_methods:
+        if merge_method not in ["lerp", "slerp", "slice", "cyclic", "gradient"]:
+            sys.exit("ERROR: Please use a valid merging method! (lerp/slerp/slice/cyclic/gradient)")
 
     if 'merge_headers' in config: merge_headers = config['merge_headers']
     else: merge_headers = True
 
+    # Seed config
     if 'random_seed' in config: random_seed = config['random_seed']
     else: random_seed = 512
 
-    if 'auto_weights' in config: auto_weights = config['auto_weights']
-    else: auto_weights = False
-
+    # Strategy
     if 'strategy' in config: strategy = config['strategy']
     else: strategy = "cumulative"
     if 'strategy_threshold' in config: strategy_threshold = config['strategy_threshold']
     else: strategy_threshold = 0.6
 
+    # Actual start of script
     print_ascii_art("modules/logo.ascii")
     print(f"{datetime.now().strftime('%H:%M:%S')} - THE MERGE MONSTER HUNGERS")
     print("------------------------------------")
@@ -87,7 +98,7 @@ def merge_monster(config_path):
     print(f"Phrases loaded   : {len(bad_phrases)+len(good_phrases)}")
     print(f"Auto weights     : {auto_weights}")
     print(f"Merge ratios     : {merge_ratios}")
-    print(f"Merge method     : {merge_method}")
+    print(f"Merge method(s)  : {merge_methods}")
     print(f"Merge headers    : {merge_headers}")
     print(f"Strategy used    : {strategy}")
 
@@ -97,7 +108,7 @@ def merge_monster(config_path):
             
         torch.set_default_device(device)
     
-        # Seed 512
+        # Setting all the seeds
         torch.manual_seed(random_seed)
         random.seed(random_seed)
         torch.cuda.manual_seed(random_seed)
@@ -105,7 +116,7 @@ def merge_monster(config_path):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-        # Load the base model
+        # Load the base model + tokenizer
         model1 = load_model(model_path1, device)
         model1name = model_path1.split('/')[-1]
         header_chosen = [1.0, model1name]
@@ -139,6 +150,9 @@ def merge_monster(config_path):
             layer_origins[i] = [[1.0, model1name]]
         layer_origins[999] = [[1.0, model1name]]
 
+        # Sort our paths alphabetically
+        model_paths.sort()
+
         # Start of the main monster loop
         for model_path2 in model_paths:
             model2name = model_path2.split('/')[-1]
@@ -149,14 +163,10 @@ def merge_monster(config_path):
     
             model2 = load_model(model_path2, device)
 
-            model2.config.eos_token_id = model1.config.eos_token_id
-
-            # Debugging purposes
-            skip_layers = False
-            
             # Start of layer processing loop
             for i in range(layerCount):
-                if skip_layers == False:
+                # Each merge method gets executed once per layer before moving to the next layer
+                for merge_method in merge_methods:
                     # Save a copy of the unchanged dict at start, otherwise probabilities get messed up
                     model1dict = copy.deepcopy(model1.model.state_dict())
                     
@@ -165,9 +175,15 @@ def merge_monster(config_path):
                     best_layer = model1.model.layers[i].state_dict()
                     best_ratio = 1.0
                     layer_changed = False
+
+                    # Gotta find a cleaner way to handle this exception!
+                    if merge_method == "cyclic":
+                        merge_ratios = [0.25, 0.45, 0.65, 0.85]
+                    elif 'merge_ratios' in config: merge_ratios = config['merge_ratios']
+                    else: merge_ratios = [0.2, 0.4, 0.6, 0.8]
     
                     # We go along the scale of ratios and test each possibility
-                    for ratio in tqdm(merge_ratios, desc=f"Optimizing Layer {i+1}/{layerCount}"):
+                    for ratio in tqdm(merge_ratios, desc=f"Optimizing Layer {i+1}/{layerCount} ({merge_method})"):
                         layer1 = model1.model.layers[i].state_dict()
                         layer2 = model2.model.layers[i].state_dict()
                         merged_layer = layer1
@@ -180,10 +196,11 @@ def merge_monster(config_path):
                         model1.model.layers[i].load_state_dict(merged_layer)
     
                         new_probs = calculate_word_probabilities(model1, tokenizer, bad_phrases, good_phrases, device)
-
                         
                         if merge_method == "cyclic": # Dirty hack but cyclic merging only merges 15% of model 2's weight
                             ratio = 0.15
+                        elif merge_method == "gradient": # Same story for gradient, which averages out to about 45%
+                            ratio = 0.45
                 
                         if strategy == "cumulative":
                             if sum(p for _, _, p in new_probs) < sum(p for _, _, p in best_probs):
@@ -221,8 +238,7 @@ def merge_monster(config_path):
                     model1.model.load_state_dict(model1dict)
                     model1.model.layers[i].load_state_dict(best_layer)
     
-                    #print(torch.cuda.memory_summary())
-    
+                    # Our layer changed, so we add it to the dict of permutations
                     if layer_changed == True:
                         layer_origins[i].append([best_ratio, model2name])
                         layer_changed_label = 'CHANGED'
@@ -249,8 +265,9 @@ def merge_monster(config_path):
             # START OF HEADER OPTIMIZATION LOOP
             # -------------------------------------------------------------------------------------------------------
 
+            # By setting this to false the algorithm can handle models of all architectures
             if merge_headers == True:
-                # As befores, save a copy of the unchanged dict at start, otherwise probabilities get messed up
+                # As before, save a copy of the unchanged dict at start, otherwise probabilities get messed up
                 model1dict = copy.deepcopy(model1.model.state_dict())
 
                 orig_probs = calculate_word_probabilities(model1, tokenizer, bad_phrases, good_phrases, device)

@@ -90,9 +90,9 @@ def print_phrase_probabilities(model, tokenizer, bad_phrases, good_phrases, devi
     
     for phrase_type, phrase_list in [("BAD", bad_phrases), ("GOOD", good_phrases)]:
         for entry in phrase_list:
-            phrase = entry['phrase']
+            phrase = entry['phrase'].replace('\n',' ')
             for context_entry in entry['contexts']:
-                context = context_entry['context']
+                context = context_entry['context'].replace('\n',' ')
                 weight = context_entry['weight']
                 joint_log_prob = calculate_joint_log_probability(model_copy, tokenizer, context, phrase)
                 joint_prob = math.exp(joint_log_prob)
