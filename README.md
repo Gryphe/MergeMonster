@@ -27,6 +27,8 @@ Current time - Layer progress - CHANGED/RETAINED - Old total probability > New t
 
 New merging methods have been added (slice/cyclic) to help target specific parts of tensors. These are highly experimental but verified to be fully functional.
 
+**Multiple merging methods**: It is possible to combine multiple merging methods by supplying a list to the `merge_method` parameter, such as `["lerp","cyclic"]`. The loop will look like `LAYER > LERP > CYCLIC > NEXT LAYER`.
+
 **The following methods are currently available:**
 
 ### "lerp"
@@ -52,6 +54,14 @@ Default method. Linear Interpolation, your basic merging method.
 - Merge ratios are ignored and a predefined scale is used that covers the entire spectrum during the optimization process.
 
 ![Cyclic](images/cyclic.png?raw=true "Cyclic")
+
+### "gradient"
+
+- Highly experimental, but has displayed some remarkable effectiveness so far during testing.
+- Ratio defines a 90% opacity peak from which model 2 forms a gradient to model 1 on either side of the spectrum.
+- Roughly results in a 45% blend with model 1.
+
+![Gradient](images/gradient.png?raw=true "Gradient")
 
 ## Merge Strategies
 
