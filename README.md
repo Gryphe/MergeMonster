@@ -93,4 +93,4 @@ For Mistral 7B v0.1 this translates itself to either a 15 GB VRAM (1x) or a 45 G
     ```
 If no --config argument is given, it will instead revert to loading default.yaml.
 
-3. **Evaluate and save**: The script will automatically evaluate, log, and save the best-performing merged model. A copy of the log will be saved in the same folder as the script.
+3. **Evaluate and save**: The script will automatically evaluate, log, and save the best-performing merged model. A copy of the log will be saved in a subfolder called "logs".
