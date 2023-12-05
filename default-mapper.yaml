@@ -1,0 +1,32 @@
+# NOTE: Monster Mapper is 100% compatible with Merge Monster configurations, but a seperate config has been made available for an easier overview
+
+device: "cuda" # Either "cpu" or "cuda"
+random_seed: 42 # Random seed to use
+
+directories:
+  model_path1: "/home/gryphe/merge-monster/models/Mistral-7B-v0.1" # Path to the base model. Must be a local copy.
+
+# Monster Mapper exclusive options
+mapper:
+  prob_min: 10 # The minimum probability percentage to consider for display and branching out
+  top_k: 3 # For each probability branch, pick the top x token results, sorted by probability
+  max_depth: 5 # How deep to travel through each probability branch - prob_min serves as a filter for this, as branches with lower then prob_min won't be displayed.
+  additional_length: 20 # How many tokens to generate after completely exploring a branch, always taking the most probable token
+
+# Phrase = What to measure, weight = multiplication factor, contexts = proceeding contexts
+bad_phrases:
+  - phrase: "anticipation"
+    weight: 10
+    contexts: ["Her body quivers with ", "The atmosphere is thick with "]
+  - phrase: "unwavering"
+    weight: 1
+    contexts: ["Filled with an "]
+  - phrase: "determination"
+    weight: 1
+    contexts: ["Her eyes were filled with "]
+
+# Note - Example of a complex phrase
+good_phrases:
+  - phrase: "The apple is in the bedroom"
+    weight: 1
+    contexts: ["Question: If I'm in the living room and pick up the apple, go to the bedroom and drop the apple, then walk to the kitchen, where is the apple? Explain your reasoning. Answer: "]

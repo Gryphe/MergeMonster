@@ -179,6 +179,8 @@ def merge_monster(config_path):
                     # Gotta find a cleaner way to handle this exception!
                     if merge_method == "cyclic":
                         merge_ratios = [0.25, 0.45, 0.65, 0.85]
+                    elif merge_method == "swap":
+                        merge_ratios = [1.0]
                     elif 'merge_ratios' in config: merge_ratios = config['merge_ratios']
                     else: merge_ratios = [0.2, 0.4, 0.6, 0.8]
     
@@ -199,7 +201,7 @@ def merge_monster(config_path):
                         
                         if merge_method == "cyclic": # Dirty hack but cyclic merging only merges 15% of model 2's weight
                             ratio = 0.15
-                        elif merge_method == "gradient": # Same story for gradient, which averages out to about 45%
+                        elif merge_method == "gradient": # Same story for gradient and frequency, which averages out to about 45%
                             ratio = 0.45
                 
                         if strategy == "cumulative":

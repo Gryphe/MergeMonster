@@ -1,3 +1,4 @@
+import math
 import torch
 
 def merge_tensors(method: str, v0: torch.Tensor, v1: torch.Tensor, t: float) -> torch.Tensor:

@@ -90,9 +90,9 @@ def print_phrase_probabilities(model, tokenizer, bad_phrases, good_phrases, devi
     
     for phrase_type, phrase_list in [("BAD", bad_phrases), ("GOOD", good_phrases)]:
         for entry in phrase_list:
-            phrase = entry['phrase'].replace('\n',' ')
+            phrase = entry['phrase']
             for context_entry in entry['contexts']:
-                context = context_entry['context'].replace('\n',' ')
+                context = context_entry['context']
                 weight = context_entry['weight']
                 joint_log_prob = calculate_joint_log_probability(model_copy, tokenizer, context, phrase)
                 joint_prob = math.exp(joint_log_prob)
@@ -107,8 +107,8 @@ def print_phrase_probabilities(model, tokenizer, bad_phrases, good_phrases, devi
                 if weighted_prob < 999999: prob_str = f"{weighted_prob * 100:.2f}%".ljust(12)
                 else: prob_str = '###'.ljust(12)
 
-                formatted_context = format_context(context, 24)
-                formatted_phrase = format_context(phrase, 18)
+                formatted_context = format_context(context.replace('\n',' '), 24)
+                formatted_phrase = format_context(phrase.replace('\n',' '), 18)
                 phrase_context_key = (phrase, context)
 
                 if phrase_context_key not in initial_phrase_probabilities:
