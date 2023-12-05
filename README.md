@@ -3,6 +3,13 @@ An unsupervised merging algorithm for Transformers-based language models, using 
 
 **Refer to the default.yaml example configuration for an explanation of all potential configuration options.**
 
+## NEW: MonsterMapper
+MonsterMapper is a companion tool to MergeMonster that reuses its configuration files to check the first model's probabilities for the defined contexts. At its core it basically just lists the most probable auto-completions for the contexts you entered in your phrase dictionaries so that you can make the necessary changes to increase the algorithm's efficiency. 
+
+Perhaps the phrase you originally defined isn't as common as you thought, but there's a much more common auto-completion that matches your intended goal. MonsterMapper will help you discover this.
+
+A seperate config (default-mapper.yaml) has been made available as this tool has its own set of exclusive options to configure as needed. 
+
 ## How It Works
 
 1. The algorithm loads a base model of your own choosing (model 1), along with a directory (or repo list) containing multiple models of the same architecture and size.
@@ -84,6 +91,8 @@ When configured in "cuda" mode it requires enough VRAM to store **3 copies of a 
 For Mistral 7B v0.1 this translates itself to either a 15 GB VRAM (1x) or a 45 GB VRAM (3x) requirement.
 
 ## Usage
+
+**Note**: MonsterMapper works exactly the same.
 
 1. **Prepare your configuration file (or modify the included one)**: Create a YAML file with your model paths, device settings, and other configurations.
 2. **Run the script**: Use the following command to start the merging process:
