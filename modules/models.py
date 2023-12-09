@@ -39,9 +39,15 @@ def load_model(model_path, device):
     with NoInit():
         print("------------------------------------")
         print(f"{datetime.now().strftime('%H:%M:%S')} - Loading model ({model_path})...")
-        tf_model = AutoModelForCausalLM.from_pretrained(model_path)
-        tf_model.half()
-        tf_model = tf_model.to(device)
+
+        if device == "cuda":
+            tf_model = AutoModelForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, device_map="auto")
+            tf_model.half()
+        else:
+            tf_model = AutoModelForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True)
+            tf_model.half()
+            tf_model = tf_model.to(device)
+            
         tf_model.eval()
         print(f"{datetime.now().strftime('%H:%M:%S')} -  Model loaded. Dtype: {tf_model.dtype}")
         print("------------------------------------")
