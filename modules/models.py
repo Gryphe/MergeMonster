@@ -62,7 +62,7 @@ def save_model(output_directory, source_directory, model):
     if output_directory != source_directory:
         print(f"{datetime.now().strftime('%H:%M:%S')} - Copying tokenizer files to {output_directory}...")
         files_to_copy = ["added_tokens.json", "tokenizer.model", "special_tokens_map.json", 
-                         "tokenizer_config.json", "vocab.json", "merges.txt"]
+                         "tokenizer_config.json", "vocab.json", "merges.txt", "tokenizer.json"]
         
         for filename in files_to_copy:
             src_path = os.path.join(source_directory, filename)

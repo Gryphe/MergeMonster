@@ -103,7 +103,10 @@ def colorize_probability(prob):
     return f'{color}{prob:.2f}%'
 
 def display_token_probabilities(token_probabilities, tokenizer):
+    branches = 0 
+    
     for path, sequence in token_probabilities:
+        branches += 1
         # Construct the probability path string with tokens
         prob_path_str = " > ".join([
             f'{colorize_probability(token_prob * 100)}% [{tokenizer.decode([token], skip_special_tokens=True)}]'
@@ -111,6 +114,8 @@ def display_token_probabilities(token_probabilities, tokenizer):
         ])
         prob_path_str = prob_path_str.replace('\n', '\\n')
         print(f"Sequence: {sequence}\nTrace: {prob_path_str}{Fore.RESET}\n---")
+
+    print(f"TOTAL BRANCHES: {branches}\n-----")
 
 def generate_token_probabilities(model, tokenizer, context="", prob_min=10, top_k=3, max_depth=5, additional_length=20, device='cuda'):
     input_ids = tokenizer.encode(context, return_tensors='pt').to(device)
